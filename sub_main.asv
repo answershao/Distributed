@@ -1,5 +1,5 @@
 function [summary_info_save] = sub_main(folder, statistic_CD, num_j, L, skill_count, normalization)
-global T cycles resource_cate Simul_Num
+global T cycles Simul_Num
 
 % allocate_source_rules_set = {'shsl', 'mas1', 'lcbr'};
 % activity_rules_set = {'lst1', 'slst', 'slft'};
@@ -30,8 +30,7 @@ for outer_i = 1:length(activity_rules_set)
             cpm_end_time = zeros(L, Simul_Num, num_j);
             UF = zeros(Simul_Num, 1);
             
-            for num = 1:Simul_Num %仿真次数
-                
+            for num = 1:Simul_Num %仿真次数              
                 for i = 1:L
                     % sprintf('关键路径工期进度:%d / %d',i, L)
                     [CPM(num, i), cpm_start_time(i, num, :), cpm_end_time(i, num, :)] = cpm(statistic_CD(:, num, i), E(:, :, i));
@@ -40,23 +39,19 @@ for outer_i = 1:length(activity_rules_set)
                     [lst, lft] = find_PR_slft_slst(num_j, statistic_CD(:, num, i), E(:, :, i), cpm_end_time(i, num, :)); %-仿真工期-每次仿真生成的活动的LST,LFT
                     LST(i, num, :) = lst;
                     LFT(i, num, :) = lft;
+%                 for project = 1:L
+                    global_cpm_start_time(i,:) = cpm_start_time(i, num, :) + ad(i);
+                    global_cpm_end_time(i,:) = cpm_end_time(i, num, :) + ad(i);%多项目中考虑全局资源时，便要考虑项目的到达时间
+                    inter_GCPD(i) = max(global_cpm_end_time(i,:));
                 end
-                
-
-            for project = 1:L
-                global_cpm_start_time(project,:) = cpm_start_time(project,:)+ad(project);
-                global_cpm_end_time(project,:) = cpm_end_time(project,:)+ad(project);%多项目中考虑全局资源时，便要考虑项目的到达时间
-                inter_GCPD(project) = max(global_cpm_end_time(project,:));
+                GCPD(num) = max(inter_GCPD);%全局关键路径时间
+                UF(num) = find_UF(GCPD(num), statistic_CD(:, num, :), skill_count,skill_cate,GlobalSourceRequest,Lgs);%当前得出一个算例的UF
             end
-            GCPD = max(inter_GCPD);%全局关键路径时间
-            UF = find_UF( GCPD,d, skill_count,skill_cate,GlobalSourceRequest,Lgs);%当前得出一个算例的UF
             
-            for cycle = 1:cycles %试验次数 2
-                
+            for cycle = 1:cycles %试验次数 2      
                 for num = 1:Simul_Num %仿真次数 5
                     original_local_start_times = zeros(Simul_Num, num_j, L); %此处的初始开始时间与之前不一，需要重新根据局部优先规则确定
-                    original_local_end_times = zeros(Simul_Num, num_j, L);
-                    
+                    original_local_end_times = zeros(Simul_Num, num_j, L);         
                     for i = 1:L % CPLEX计算
                         sprintf('初始局部调度进度:%d / %d', i, L)
                         %LST需要带有仿真标志
@@ -66,16 +61,24 @@ for outer_i = 1:length(activity_rules_set)
                             [original_local_start_time, original_local_end_time] = locals_slst(num_j, R(:, :, i), r(:, :, i), statistic_CD(:, num, i), LST(i, num, :), LFT(i, num, :), forestset, ad(1, i));
                         elseif activity_rules == 'slft'
                             [original_local_start_time, original_local_end_time] = locals_slft(num_j, R(:, :, i), r(:, :, i), statistic_CD(:, num, i), LFT(i, num, :), forestset, ad(1, i));
-                        end
-                        
+                        end              
                         original_local_start_times(num, :, i) = original_local_start_time + 1;
                         original_local_end_times(num, :, i) = original_local_end_time + 1;
-                    end
-                    
+                    end         
                     realitic_start_times = original_local_start_times - 1;
                     realitic_end_times = original_local_end_times - 1;
-                    original_total_duration = max(realitic_end_times, [], 2); %初始局部调度各项目工期最大值，
+                    original_total_duration = max(realitic_end_times, [], 2); %初始局部调度各项目工期最大值
                     
+                  %%
+%                      tmp = squeeze(original_total_duration);
+%                      save_local(cycle, num, :) = tmp(num, :);
+%                 end
+%             end
+%         end
+%     end
+% end
+% end
+%%
                     %% CA全局协调决策进行
                     L1 = find_L1(GlobalSourceRequest); %找到所有需要全局资源的活动
                     % 需迭代的变量
@@ -101,15 +104,17 @@ for outer_i = 1:length(activity_rules_set)
                             %LP不同项目储存不同行,yb项目序号，box_pro活动对应的项目序号
                             %把各个项目的活动单独写一个元胞组合，然后当有6种决策顺序时，根据每次的决策顺序不同，对应合并相应活动。
                             %% variable neighborhood descent(VND)
-                            [satisfy_pro, iter_not] = find_L5_2(LP, GlobalSourceRequest, skill_cate, skill_count, iter_skill_num);
+                            [satisfy_pro, iter_not] = find_L5_2(LP, GlobalSourceRequest, skill_cate, skill_count, iter_skill_num); 
                             %% 1.L4空集，%L4是空集，说明当前无项目符合技能可用量
+                            satisfy_delay= 0;
+                            iter_not_delay =0;
                             % iter_not
                             if ~isempty(iter_not)
                                 [iter_local_start_times, iter_local_end_times] = find_act_not(iter_not, time, r, temp_R, iter_d, forestset, iter_local_start_times, iter_local_end_times);
                                 chosen_results{time} = [];
                                 [allocated_set, iter_Lgs, iter_skill_num] = Release(time, chosen_results, allocated_set, Lgs, iter_Lgs, iter_skill_num);
+                                iter_not_delay = delay*(max(iter_local_end_times,2) - ad'-CPM(num,:)');
                             end
-                            
                             %% 2. L4不是空集，可能会出现count_1=0，即所有的项目都至少满足一种技能可用量
                             % satisfy_pro 项目号
                             allocate_pro = size(satisfy_pro, 1); %判断可以分配的项目数，如5个项目里只有3个可以被分配，就无需往下变换邻域了
@@ -122,7 +127,7 @@ for outer_i = 1:length(activity_rules_set)
                             count = 0; %便于记录循环几次可以得出代替初始解的解
                             
                             if size(satisfy_pro, 1) == 1
-                                all_total_delay = S_obj;
+                                satisfy_delay = S_obj;
                             else
                                 %% 交换顺序
                                 while i_pro < allocate_pro
@@ -143,12 +148,10 @@ for outer_i = 1:length(activity_rules_set)
                                         %保存当前时刻分配的活动，分配的活动有哪些，未分配的活动有哪些
                                     end
                                     
-                                end
-                                
-                                all_total_delay = S_cur; %break跳到这里
-                            end
-                            
-                            % printf('', count)
+                                end   
+                                satisfy_delay = S_obj; %break跳到这里
+                            end   
+                            all_total_delay = satisfy_delay + iter_not_delay;
                             %% 若两种一样的目标值，可任选一个结果，但是后续的更新，需要根据所选择的项目顺序决定，因为可能项目1分配了，而后续未更新过来
                             %如项目1，1-2，1-3都分配了，但是2-3没有，所以技能可用量为1，
                             %所以后续的更新需要对应调整
@@ -166,30 +169,25 @@ for outer_i = 1:length(activity_rules_set)
                             %  if ~isempty(results)
                             chosen_result = results{pos};
                             chosen_results{time} = chosen_result;
-                        end
-                        
+                        end       
                         %%  判断已用的全局资源下一时刻是否会释放
                         [allocated_set, iter_Lgs, iter_skill_num] = Release(time, chosen_results, allocated_set, Lgs, iter_Lgs, iter_skill_num);
                         
                         if length(allocated_set) == length(L1) && max(max(iter_local_start_times)) <= time
                             break
-                        end
-                        
-                    end
-                    
+                        end            
+                    end                 
                     Real_EveryTime_GS_n = [];
                     %% save
-                    [average_delay_duration, all_total_delay] = find_average_delay(CPM, finally_total_duration, ad, L, delay); %输出平均项目延期、总延期成本
-                    result_save = {people, original_skill_num, UF, CPM, original_total_duration, finally_total_duration, average_delay_duration, finally_duration, all_total_delay, ad, delay, time};
+%                     [average_delay_duration, all_total_delay] = find_average_delay(CPM(num, :), finally_total_duration, ad, L, delay); %输出平均项目延期、总延期成本
                     TTC = [TTC; all_total_delay];
                     seq = seq + 1;
+                    
+                    result_save = {people, original_skill_num, UF, CPM, original_total_duration, finally_total_duration, average_delay_duration, finally_duration, all_total_delay, ad, delay, time};
                     result_saves_file(seq, :) = result_save; %储存每个算例运行多次的信息
-                end
-                
-            end
-            
+                end          
+            end   
         end
-        
         toc
         % result_save       [1, 12] result_save_sims  [50,12] TTC
         % [50, 1]
@@ -209,8 +207,6 @@ for outer_i = 1:length(activity_rules_set)
         
         % summary_info_save
         summary_info_save(3 * (outer_i - 1) + outer_j, :) = summary_info;
-    end
-    
+    end 
 end
-
 end
