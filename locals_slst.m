@@ -13,7 +13,7 @@ for local_resource=1:resource_cate   %资源种类,只有前三种是局部资源,但是为了保证
     remaining_resource(local_resource,:) = ones(1,T)*R(1,local_resource,1);
 end % 初始化项目工期内的局部可更新资源可用量
 
-original_local_end_time = LFT;
+% original_local_end_time = LFT;
 % original_local_end_time = new_local_end_times(1,:);%传递作用，time1=1就赋值？也不对，会出现
 
 %开始分配资源
@@ -21,10 +21,11 @@ for y = 2: num_j
     activity = index(y);
     predecessors=forestset(activity,:,1);  %activity的紧前活动，predecessors_index1表示行数，因为gen只有一行，所以结果肯定都是1111
     predecessors(find(predecessors==0)) = [];
-    %[~,predecessors_index2]=ismember(predecessors,index(1:y)); %ismember判断紧前活动中元素属于gen，就为1，不属于则为0
-    [~,predecessors_index2]=ismember(predecessors,index); %ismember判断紧前活动中元素属于gen，就为1，不属于则为0
-    time1=max(original_local_end_time(1,index(predecessors_index2)));  %紧前活动的最大完工时间?
-    
+     time1=max(LFT(1,predecessors));%紧前活动的最大完工时间
+%     %[~,predecessors_index2]=ismember(predecessors,index(1:y)); %ismember判断紧前活动中元素属于gen，就为1，不属于则为0
+%     [~,predecessors_index2]=ismember(predecessors,index); %ismember判断紧前活动中元素属于gen，就为1，不属于则为0
+%     time1=max(original_local_end_time(1,index(predecessors_index2)));  %紧前活动的最大完工时间?
+%     
     for time2 = time1+1 : T
         %for time2 = time11 : T                       %POP0(np,predecessors_index2)该位置上的活动数，找紧前活动完成时间最大的那个
         %判断在time2到time2+d(activity,:,q)-1的时间段内资源约束是否满足

@@ -1,4 +1,4 @@
-function [original_local_start_time,original_local_end_time] = locals_lst(num_j,R, r, statistic_CD,LST,LFT,forestset,ad)
+function [original_local_start_time,original_local_end_time] = locals_lft(num_j,R, r, statistic_CD,LFT,forestset,ad)
 %1.制定优先规则-活动执行顺序  (以LFT制定-期望工期）
 %LST- 最晚开始时间，CPM的逆向调度的开始时间为最晚开始时间
 %LFT-最晚结束时间，min{所有紧后活动中LST}
@@ -41,11 +41,11 @@ f=zeros(1,num_j+1);  %间接储存original_local_start_time
 %      LFT(activity_choose) = min(LST(sucdecessors));
 % end
 
-[A,index] = sort(LST);%最晚开始时间升序排序，仅用来规则的排序，确定活动执行的顺序， index指对应的活动序号,
+[A,index] = sort(LFT);%最晚开始时间升序排序，仅用来规则的排序，确定活动执行的顺序， index指对应的活动序号,
 %通过规则，确定活动执行的列表index，最小的先执行，所以升序
 
 %% 无论什么规则，都应该以最晚完成时间LFT计算
-% original_local_end_time = LFT;%传递作用
+% original_local_end_time = A;%传递作用
 
 %2.为安排好的活动分配局部资源
 for local_resource=1:resource_cate   %资源种类,只有前三种是局部资源,但是为了保证后续矩阵一致所以最后一种资源为0即可，无需管！
