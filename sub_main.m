@@ -1,15 +1,12 @@
-function [summary_info_save, result_saves_file] = sub_main(folder, statistic_CD, num_j, L, skill_count, normalization)
+function [summary_info_save, result_saves_file] = sub_main(folder, num_j, L, skill_count)
 global T cycles Simul_Num
-allocate_source_rules_set = {'shsl', 'mas1', 'lcbr'};
-activity_rules_set = {'lst1','lft1', 'slst', 'slft'};
-% allocate_source_rules_set = {'shsl'};
-% activity_rules_set = {'slft'};
 
+allocate_source_rules_set = {'shsl'};
+activity_rules_set = {'lft1'};
 summary_info_save = cell(length(activity_rules_set) * length(allocate_source_rules_set), 12);
-
+best_order_rands = cell(100, 1);
 for outer_i = 1:length(activity_rules_set)
     activity_rules = activity_rules_set{outer_i};
-    
     for outer_j = 1:length(allocate_source_rules_set)
         allocate_source_rules = allocate_source_rules_set{outer_j};
         tic
@@ -18,12 +15,18 @@ for outer_i = 1:length(activity_rules_set)
         APD = [];
         TMS = [];
         seq = 0;
-        result_saves_file = cell(50, 12);
+        result_saves_file = cell(10, 12);
         
-        for file = 1:5
+        %         for file = 1:5
+        for file = 1
             [R, r, d, E, delay, ad, people, forestset] = extract_project_info(file, L, num_j);
-            [skill_cate, GlobalSourceRequest, Lgs, original_skill_num] = generate_global_info(L, num_j, r, people, skill_count);
-            %             [CPM, cpm_start_time, cpm_end_time, original_local_start_times, original_local_end_times, UF, original_total_duration] = calculate_cpm(activity_rules, statistic_CD, d, E, L, R, r,num_j, ad, skill_count,skill_cate,GlobalSourceRequest,Lgs,forestset);
+            statistic_CD = d;
+            % [skill_cate, GlobalSourceRequest, Lgs, original_skill_num] = generate_global_info(L, num_j, r, people, skill_count);
+            GlobalSourceRequest = [0,1,2,2,1,0;0,3,3,1,1,0;0,1,2,2,1,0;0,3,4,1,1,0;0,1,2,1,1,0];
+            skill_cate = [0,1,2,3,1,0;0,1,2,3,3,0;0,1,2,3,3,0;0,1,2,3,2,0;0,1,2,3,2,0];
+            Lgs = [0,0,0.8,0.8,0.8;1,1,0,0.6,1;0.6,0.8,0.8,0.6,0];
+            original_skill_num = sum(Lgs~=0,2)';
+            
             LST = zeros(L, Simul_Num, num_j); %最晚开始时间
             LFT = zeros(L, Simul_Num, num_j); %最晚结束时间
             CPM = zeros(Simul_Num, L);
@@ -40,7 +43,6 @@ for outer_i = 1:length(activity_rules_set)
                     [lst, lft] = find_PR_slft_slst(num_j, statistic_CD(:, num, i), E(:, :, i), cpm_end_time(i, num, :)); %-仿真工期-每次仿真生成的活动的LST,LFT
                     LST(i, num, :) = lst;
                     LFT(i, num, :) = lft;
-                    %                 for project = 1:L
                     global_cpm_start_time(i,:) = cpm_start_time(i, num, :) + ad(i);
                     global_cpm_end_time(i,:) = cpm_end_time(i, num, :) + ad(i);%多项目中考虑全局资源时，便要考虑项目的到达时间
                     inter_GCPD(i) = max(global_cpm_end_time(i,:));
@@ -54,7 +56,7 @@ for outer_i = 1:length(activity_rules_set)
                     original_local_start_times = zeros(Simul_Num, num_j, L); %此处的初始开始时间与之前不一，需要重新根据局部优先规则确定
                     original_local_end_times = zeros(Simul_Num, num_j, L);
                     for i = 1:L % CPLEX计算
-                        sprintf('初始局部调度进度:%d / %d', i, L)
+%                         sprintf('初始局部调度进度:%d / %d', i, L)
                         %LST需要带有仿真标志
                         if activity_rules == 'lst1'
                             [original_local_start_time, original_local_end_time] = locals_lst(num_j, R(:, :, i), r(:, :, i), statistic_CD(:, num, i), LST(i, num, :), LFT(i, num, :), forestset, ad(1, i));
@@ -86,13 +88,14 @@ for outer_i = 1:length(activity_rules_set)
                     allocated_set = {}; chosen_results = []; iter_RN = zeros(1, people); %资源-时间矩阵
                     
                     for time = 1:T
-                        sprintf('当前循环:%d-%d-%d', cycle, seq + 1, time)
+%                         sprintf('当前循环:%d-%d-%d', cycle, seq + 1, time)
                         L2 = find_L2(L1, iter_local_start_times, time, allocated_set); % 当前时刻需要全局资源的活动L2
                         if ~isempty(L2)
                             %以项目PA为单位 先给各PA进行全排列，根据项目序号不同
                             %确定好项目序号之后，再对不同项目序号下的活动进行启发式顺序确定
                             %（如同一个项目PA中出现2个活动同时开始，该如何确定让谁先开始）
-                            [LP, ~, ~] = find_LP(L2); %yb---找到当前冲突时刻的项目数，及各项目的冲突活动分行排列
+%                             [LP, ~, ~] = find_LP(L2); %yb---找到当前冲突时刻的项目数，及各项目的冲突活动分行排列
+                             [LP,yb,box_pro] = find_LP(L2);%yb---找到当前冲突时刻的项目数，及各项目的冲突活动分行排列
                             %LP不同项目储存不同行,yb项目序号，box_pro活动对应的项目序号
                             %把各个项目的活动单独写一个元胞组合，然后当有6种决策顺序时，根据每次的决策顺序不同，对应合并相应活动。
                             % variable neighborhood descent(VND)
@@ -142,7 +145,7 @@ for outer_i = 1:length(activity_rules_set)
                                 if ~isempty(iter_not)
                                     % iter not
                                     [later_start_times, later_end_times] = find_act_not(iter_not, time, r, temp_R, iter_d, forestset, iter_local_start_times, iter_local_end_times);
-                                    chosen_results{time} = [];    
+                                    chosen_results{time} = [];
                                     temp_Lgs_s = iter_Lgs;
                                     Real_Available_skill_cates = iter_skill_num;
                                     temp_d2 = iter_d;
@@ -154,9 +157,12 @@ for outer_i = 1:length(activity_rules_set)
                                 else
                                     % statisfy
                                     allocate_pro = size(satisfy_pro, 1); %判断可以分配的项目数，如5个项目里只有3个可以被分配，就无需往下变换邻域了
-                                    order_rand = randperm(allocate_pro); %随机序列21543
-                                    s1 = satisfy_pro(order_rand, :);
-                                    S1 = conbine_cell_to_row(s1);
+                                     [L5,order_rand] = find_L5(L2, LP, yb,delay); %单位成本高的项目，优先指派
+%                                     order_rand = randperm(allocate_pro); %随机序列21543
+                                    best_order_rand = order_rand;
+%                                     s1 = satisfy_pro(order_rand, :);
+%                                     S1 = conbine_cell_to_row(s1);
+                                    S1 = L5;
                                     [S_obj, results, Real_Available_skill_cates, temp_Lgs_s, temp_d2, later_start_times, later_end_times, temp_RN_s, later_local_duration, finally_total_duration] = find_obj(allocate_source_rules, S1, time, ad, delay, CPM(num, :), r, temp_R, forestset, skill_cate, GlobalSourceRequest, iter_Lgs, iter_skill_num, iter_d, iter_d2, iter_local_start_times, iter_local_end_times, iter_RN);
                                     %S_obj 初始项目顺序对应的初始解与main有关
                                     i_pro = 1; %第一个位置的项目
@@ -166,6 +172,7 @@ for outer_i = 1:length(activity_rules_set)
                                         satisfy_delay = S_obj;
                                     else
                                         % 交换顺序
+                                        sprintf('original order %d //', order_rand)
                                         while i_pro < allocate_pro
                                             count = count + 1;
                                             a = order_rand(1, i_pro); %a = 1
@@ -173,10 +180,11 @@ for outer_i = 1:length(activity_rules_set)
                                             order_rand(1, i_pro + 1) = a; %iter_S1 = [2 1 3],Note:所找到的解都是L4/L5解空间里的解，新的顺序
                                             s1 = satisfy_pro(order_rand, :);
                                             S1 = conbine_cell_to_row(s1); %合并为一行
+                                            sprintf('order %d //', order_rand)
                                             % 求解 S_cur
-                                            [S_cur, results11, Real_Available_skill_cates11, temp_Lgs_s11, temp_d211, later_start_times11, later_end_times11, temp_RN_s11, later_local_duration11, finally_total_duration11] = find_obj(allocate_source_rules, S1, time, ad, delay, CPM(num, :), r, temp_R, forestset, skill_cate, GlobalSourceRequest, iter_Lgs, iter_skill_num, iter_d, iter_d2, iter_local_start_times, iter_local_end_times, iter_RN);
-                                            
+                                            [S_cur, results11, Real_Available_skill_cates11, temp_Lgs_s11, temp_d211, later_start_times11, later_end_times11, temp_RN_s11, later_local_duration11, finally_total_duration11] = find_obj(allocate_source_rules, S1, time, ad, delay, CPM(num, :), r, temp_R, forestset, skill_cate, GlobalSourceRequest, iter_Lgs, iter_skill_num, iter_d, iter_d2, iter_local_start_times, iter_local_end_times, iter_RN); 
                                             if S_cur >= S_obj %若新解比初始解大，则继续下一个邻域搜索
+                                                best_order_rand = order_rand;
                                                 i_pro = i_pro + 1;
                                             else %否，令当前解代替初始解，作为新的初始解
                                                 i_pro = 1; %并返回位置为1的邻域搜索
@@ -185,10 +193,12 @@ for outer_i = 1:length(activity_rules_set)
                                                 %保存当前时刻分配的活动，分配的活动有哪些，未分配的活动有哪些
                                             end
                                         end
+                                        sprintf('当前循环:%d-%d-%d', cycle, seq + 1, time)
+                                        best_order_rands{time} = best_order_rand;
                                         satisfy_delay = S_obj; %break跳到这里
                                     end
                                     all_total_delay = satisfy_delay;
-                                end   
+                                end
                             end
                             %% 若两种一样的目标值，可任选一个结果，但是后续的更新，需要根据所选择的项目顺序决定，因为可能项目1分配了，而后续未更新过来
                             %如项目1，1-2，1-3都分配了，但是2-3没有，所以技能可用量为1，
@@ -245,12 +255,12 @@ for outer_i = 1:length(activity_rules_set)
         summary_info{4} = toc / (Simul_Num * cycles * 5);
         summary_info{5} = num2str(L);
         summary_info{6} = num2str(num_j - 2);
-        summary_info{7} = normalization;
+        %         summary_info{7} = normalization;
         summary_info{8} = activity_rules;
         summary_info{9} = allocate_source_rules;
         
         result_saves_file = [result_saves_file; summary_info];
-        save(strcat(folder, '\', num2str(L), '_', num2str(num_j - 2), '_', normalization, '_', activity_rules, '_', allocate_source_rules, '.mat'), 'result_saves_file');
+        save(strcat(folder, '\', num2str(L), '_', num2str(num_j - 2), '_', activity_rules, '_', allocate_source_rules, '.mat'), 'result_saves_file');
         sprintf('保存文件')
         
         % summary_info_save

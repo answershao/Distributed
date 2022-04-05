@@ -2,7 +2,7 @@ function [FileName] = read_folder(FolderPath)
 %read_folder 此处显示有关此函数的摘要
 %   此处显示详细说明
 % 输出 FileName 数组 存放文件名地址
-FolderPath1 = strcat(FolderPath, '\\*.sm');
+FolderPath1 = strcat(FolderPath, '\\*.rcp');
 Content=dir(FolderPath1);
 NumOfFile=size(Content,1);
 FileName = [];
