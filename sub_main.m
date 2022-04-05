@@ -104,9 +104,8 @@ for outer_i = 1:length(activity_rules_set)
                                 [iter_local_start_times, iter_local_end_times] = find_act_not(iter_not, time, r, temp_R, iter_d, forestset, iter_local_start_times, iter_local_end_times);
                                 % statisfy
                                 allocate_pro = size(satisfy_pro, 1); %判断可以分配的项目数，如5个项目里只有3个可以被分配，就无需往下变换邻域了
-                                order_rand = randperm(allocate_pro); %随机序列21543
-                                s1 = satisfy_pro(order_rand, :);
-                                S1 = conbine_cell_to_row(s1);
+                                [L5,order_rand] = find_L5(L2, LP, yb,delay); %单位成本高的项目，优先指派
+                                S1 = L5;
                                 [S_obj, results, Real_Available_skill_cates, temp_Lgs_s, temp_d2, later_start_times, later_end_times, temp_RN_s, later_local_duration, finally_total_duration] = find_obj(allocate_source_rules, S1, time, ad, delay, CPM(num, :), r, temp_R, forestset, skill_cate, GlobalSourceRequest, iter_Lgs, iter_skill_num, iter_d, iter_d2, iter_local_start_times, iter_local_end_times, iter_RN);
                                 %S_obj 初始项目顺序对应的初始解与main有关
                                 i_pro = 1; %第一个位置的项目
@@ -142,7 +141,7 @@ for outer_i = 1:length(activity_rules_set)
                                 if ~isempty(iter_not)
                                     % iter not
                                     [later_start_times, later_end_times] = find_act_not(iter_not, time, r, temp_R, iter_d, forestset, iter_local_start_times, iter_local_end_times);
-                                    chosen_results{time} = [];    
+                                    chosen_results{time} = [];
                                     temp_Lgs_s = iter_Lgs;
                                     Real_Available_skill_cates = iter_skill_num;
                                     temp_d2 = iter_d;
@@ -154,9 +153,8 @@ for outer_i = 1:length(activity_rules_set)
                                 else
                                     % statisfy
                                     allocate_pro = size(satisfy_pro, 1); %判断可以分配的项目数，如5个项目里只有3个可以被分配，就无需往下变换邻域了
-                                    order_rand = randperm(allocate_pro); %随机序列21543
-                                    s1 = satisfy_pro(order_rand, :);
-                                    S1 = conbine_cell_to_row(s1);
+                                    [L5,order_rand] = find_L5(L2, LP, yb,delay); %单位成本高的项目，优先指派
+                                    S1 = L5;
                                     [S_obj, results, Real_Available_skill_cates, temp_Lgs_s, temp_d2, later_start_times, later_end_times, temp_RN_s, later_local_duration, finally_total_duration] = find_obj(allocate_source_rules, S1, time, ad, delay, CPM(num, :), r, temp_R, forestset, skill_cate, GlobalSourceRequest, iter_Lgs, iter_skill_num, iter_d, iter_d2, iter_local_start_times, iter_local_end_times, iter_RN);
                                     %S_obj 初始项目顺序对应的初始解与main有关
                                     i_pro = 1; %第一个位置的项目
@@ -188,7 +186,7 @@ for outer_i = 1:length(activity_rules_set)
                                         satisfy_delay = S_obj; %break跳到这里
                                     end
                                     all_total_delay = satisfy_delay;
-                                end   
+                                end
                             end
                             %% 若两种一样的目标值，可任选一个结果，但是后续的更新，需要根据所选择的项目顺序决定，因为可能项目1分配了，而后续未更新过来
                             %如项目1，1-2，1-3都分配了，但是2-3没有，所以技能可用量为1，
