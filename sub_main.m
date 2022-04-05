@@ -56,7 +56,7 @@ for outer_i = 1:length(activity_rules_set)
                     original_local_start_times = zeros(Simul_Num, num_j, L); %此处的初始开始时间与之前不一，需要重新根据局部优先规则确定
                     original_local_end_times = zeros(Simul_Num, num_j, L);
                     for i = 1:L % CPLEX计算
-%                         sprintf('初始局部调度进度:%d / %d', i, L)
+                        %                         sprintf('初始局部调度进度:%d / %d', i, L)
                         %LST需要带有仿真标志
                         if activity_rules == 'lst1'
                             [original_local_start_time, original_local_end_time] = locals_lst(num_j, R(:, :, i), r(:, :, i), statistic_CD(:, num, i), LST(i, num, :), LFT(i, num, :), forestset, ad(1, i));
@@ -88,14 +88,14 @@ for outer_i = 1:length(activity_rules_set)
                     allocated_set = {}; chosen_results = []; iter_RN = zeros(1, people); %资源-时间矩阵
                     
                     for time = 1:T
-%                         sprintf('当前循环:%d-%d-%d', cycle, seq + 1, time)
+                        %                         sprintf('当前循环:%d-%d-%d', cycle, seq + 1, time)
                         L2 = find_L2(L1, iter_local_start_times, time, allocated_set); % 当前时刻需要全局资源的活动L2
                         if ~isempty(L2)
                             %以项目PA为单位 先给各PA进行全排列，根据项目序号不同
                             %确定好项目序号之后，再对不同项目序号下的活动进行启发式顺序确定
                             %（如同一个项目PA中出现2个活动同时开始，该如何确定让谁先开始）
-%                             [LP, ~, ~] = find_LP(L2); %yb---找到当前冲突时刻的项目数，及各项目的冲突活动分行排列
-                             [LP,yb,box_pro] = find_LP(L2);%yb---找到当前冲突时刻的项目数，及各项目的冲突活动分行排列
+                            %                             [LP, ~, ~] = find_LP(L2); %yb---找到当前冲突时刻的项目数，及各项目的冲突活动分行排列
+                            [LP,yb,box_pro] = find_LP(L2);%yb---找到当前冲突时刻的项目数，及各项目的冲突活动分行排列
                             %LP不同项目储存不同行,yb项目序号，box_pro活动对应的项目序号
                             %把各个项目的活动单独写一个元胞组合，然后当有6种决策顺序时，根据每次的决策顺序不同，对应合并相应活动。
                             % variable neighborhood descent(VND)
@@ -107,9 +107,8 @@ for outer_i = 1:length(activity_rules_set)
                                 [iter_local_start_times, iter_local_end_times] = find_act_not(iter_not, time, r, temp_R, iter_d, forestset, iter_local_start_times, iter_local_end_times);
                                 % statisfy
                                 allocate_pro = size(satisfy_pro, 1); %判断可以分配的项目数，如5个项目里只有3个可以被分配，就无需往下变换邻域了
-                                order_rand = randperm(allocate_pro); %随机序列21543
-                                s1 = satisfy_pro(order_rand, :);
-                                S1 = conbine_cell_to_row(s1);
+                                [L5,order_rand] = find_L5(L2, LP, yb,delay); %单位成本高的项目，优先指派
+                                S1 = L5;
                                 [S_obj, results, Real_Available_skill_cates, temp_Lgs_s, temp_d2, later_start_times, later_end_times, temp_RN_s, later_local_duration, finally_total_duration] = find_obj(allocate_source_rules, S1, time, ad, delay, CPM(num, :), r, temp_R, forestset, skill_cate, GlobalSourceRequest, iter_Lgs, iter_skill_num, iter_d, iter_d2, iter_local_start_times, iter_local_end_times, iter_RN);
                                 %S_obj 初始项目顺序对应的初始解与main有关
                                 i_pro = 1; %第一个位置的项目
@@ -157,11 +156,8 @@ for outer_i = 1:length(activity_rules_set)
                                 else
                                     % statisfy
                                     allocate_pro = size(satisfy_pro, 1); %判断可以分配的项目数，如5个项目里只有3个可以被分配，就无需往下变换邻域了
-                                     [L5,order_rand] = find_L5(L2, LP, yb,delay); %单位成本高的项目，优先指派
-%                                     order_rand = randperm(allocate_pro); %随机序列21543
+                                    [L5,order_rand] = find_L5(L2, LP, yb,delay); %单位成本高的项目，优先指派
                                     best_order_rand = order_rand;
-%                                     s1 = satisfy_pro(order_rand, :);
-%                                     S1 = conbine_cell_to_row(s1);
                                     S1 = L5;
                                     [S_obj, results, Real_Available_skill_cates, temp_Lgs_s, temp_d2, later_start_times, later_end_times, temp_RN_s, later_local_duration, finally_total_duration] = find_obj(allocate_source_rules, S1, time, ad, delay, CPM(num, :), r, temp_R, forestset, skill_cate, GlobalSourceRequest, iter_Lgs, iter_skill_num, iter_d, iter_d2, iter_local_start_times, iter_local_end_times, iter_RN);
                                     %S_obj 初始项目顺序对应的初始解与main有关
@@ -182,7 +178,7 @@ for outer_i = 1:length(activity_rules_set)
                                             S1 = conbine_cell_to_row(s1); %合并为一行
                                             sprintf('order %d //', order_rand)
                                             % 求解 S_cur
-                                            [S_cur, results11, Real_Available_skill_cates11, temp_Lgs_s11, temp_d211, later_start_times11, later_end_times11, temp_RN_s11, later_local_duration11, finally_total_duration11] = find_obj(allocate_source_rules, S1, time, ad, delay, CPM(num, :), r, temp_R, forestset, skill_cate, GlobalSourceRequest, iter_Lgs, iter_skill_num, iter_d, iter_d2, iter_local_start_times, iter_local_end_times, iter_RN); 
+                                            [S_cur, results11, Real_Available_skill_cates11, temp_Lgs_s11, temp_d211, later_start_times11, later_end_times11, temp_RN_s11, later_local_duration11, finally_total_duration11] = find_obj(allocate_source_rules, S1, time, ad, delay, CPM(num, :), r, temp_R, forestset, skill_cate, GlobalSourceRequest, iter_Lgs, iter_skill_num, iter_d, iter_d2, iter_local_start_times, iter_local_end_times, iter_RN);
                                             if S_cur >= S_obj %若新解比初始解大，则继续下一个邻域搜索
                                                 best_order_rand = order_rand;
                                                 i_pro = i_pro + 1;
