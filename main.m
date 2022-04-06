@@ -24,27 +24,4 @@ L = 5;
 skill_count = 3;
 num_j = 6;
 [summary_info_save, result_saves_file] = sub_main(folder, num_j, L, skill_count);
-% 
-% 
-% % 项目数量
-% for L = [2, 5]
-%     % 总活动数
-%     if L == 2
-%         skill_count = 3; % 技能种类数
-%     elseif L == 5
-%         skill_count = 5; % 技能种类数
-%     end
-%     for num_j = 6
-%         normalization_set = {'u1', 'u2', 'b1', 'b2', 'exp'};
-%         for i = 1:1
-%             normalization = normalization_set{i};
-%             sprintf(normalization)
-%             data_input = load(strcat('..\DataGenerate\dataset\', normalization, '_', num2str(Simul_Num), '_', num2str(L), '_', num2str(num_j - 2), '.mat'));
-%             statistic_CD = data_input.statistic_d;
-%             [summary_info_save, result_saves_file] = sub_main(folder, statistic_CD, num_j, L, skill_count, normalization);
-%             % save summart info
-%             save(strcat(folder, '\', normalization, '_', num2str(Simul_Num), '_', num2str(L), '_', num2str(num_j - 2), '.mat'), 'summary_info_save');
-%         end
-%     end
-% end
-% 
+

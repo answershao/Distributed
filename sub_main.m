@@ -107,8 +107,10 @@ for outer_i = 1:length(activity_rules_set)
                                 [iter_local_start_times, iter_local_end_times] = find_act_not(iter_not, time, r, temp_R, iter_d, forestset, iter_local_start_times, iter_local_end_times);
                                 % statisfy
                                 allocate_pro = size(satisfy_pro, 1); %判断可以分配的项目数，如5个项目里只有3个可以被分配，就无需往下变换邻域了
-                                [L5,order_rand] = find_L5(L2, LP, yb,delay); %单位成本高的项目，优先指派
-                                S1 = L5;
+%                                 [L5,order_rand] = find_L5(L2, LP, yb,delay); %单位成本高的项目，优先指派   
+                                 [L5,order_rand] = find_L5(satisfy_pro,delay); %单位成本高的项目，优先指派   
+                                s1 = satisfy_pro(order_rand, :);
+                                S1 = conbine_cell_to_row(s1);               
                                 [S_obj, results, Real_Available_skill_cates, temp_Lgs_s, temp_d2, later_start_times, later_end_times, temp_RN_s, later_local_duration, finally_total_duration] = find_obj(allocate_source_rules, S1, time, ad, delay, CPM(num, :), r, temp_R, forestset, skill_cate, GlobalSourceRequest, iter_Lgs, iter_skill_num, iter_d, iter_d2, iter_local_start_times, iter_local_end_times, iter_RN);
                                 %S_obj 初始项目顺序对应的初始解与main有关
                                 i_pro = 1; %第一个位置的项目
@@ -156,9 +158,11 @@ for outer_i = 1:length(activity_rules_set)
                                 else
                                     % statisfy
                                     allocate_pro = size(satisfy_pro, 1); %判断可以分配的项目数，如5个项目里只有3个可以被分配，就无需往下变换邻域了
-                                    [L5,order_rand] = find_L5(L2, LP, yb,delay); %单位成本高的项目，优先指派
+                                   [L5,order_rand] = find_L5(satisfy_pro,delay); %单位成本高的项目，优先指派
+%                                     [L5,order_rand] = find_L5(L2, LP, yb,delay); %单位成本高的项目，优先指派
                                     best_order_rand = order_rand;
-                                    S1 = L5;
+                                    s1 = satisfy_pro(order_rand, :);
+                                    S1 = conbine_cell_to_row(s1);    
                                     [S_obj, results, Real_Available_skill_cates, temp_Lgs_s, temp_d2, later_start_times, later_end_times, temp_RN_s, later_local_duration, finally_total_duration] = find_obj(allocate_source_rules, S1, time, ad, delay, CPM(num, :), r, temp_R, forestset, skill_cate, GlobalSourceRequest, iter_Lgs, iter_skill_num, iter_d, iter_d2, iter_local_start_times, iter_local_end_times, iter_RN);
                                     %S_obj 初始项目顺序对应的初始解与main有关
                                     i_pro = 1; %第一个位置的项目
